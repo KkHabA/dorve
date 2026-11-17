@@ -1758,6 +1758,15 @@ body.night .lg-pend { color:var(--gold-ink); }
   .cmp-cta-n { display:none; }
 }
 
+
+/* Modo noche sin foto nocturna: la foto de día se oscurece entera (sin recuadro) y se avisa */
+.vconf-left::after { content:''; position:absolute; inset:0; z-index:3; pointer-events:none; background:#050505; opacity:0; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1); }
+body.night .vconf-left.noche-sim::after { opacity:0.74; }
+.vconf-left::before { content:'Vista nocturna próximamente'; position:absolute; left:0; right:0; bottom:22px; z-index:4; text-align:center; pointer-events:none;
+  font-size:11px; letter-spacing:2.4px; text-transform:uppercase; color:#C9A96E; opacity:0; transition:opacity 600ms ease; }
+body.night .vconf-left.noche-sim::before { opacity:1; transition-delay:400ms; }
+body.night .vconf-left.noche-sim { background:#F6F6F6 !important; }
+@media (max-width:899px) { .vconf-left::before { bottom:14px; font-size:9.5px; letter-spacing:1.8px; } }
 </style>
 </head>
 <body>
@@ -3818,11 +3827,18 @@ function esFotoNoche(src) {
 
 ;
 
+// Marco de la foto: negro con foto de noche; si en modo noche falta la foto nocturna, se oscurece la de día
+function marcarMarco(marco, src) {
+  const noche = !!src && esFotoNoche(src);
+  marco.classList.toggle('foto-noche', noche);
+  marco.classList.toggle('noche-sim', !!src && !noche && typeof modoNoche !== 'undefined' && !!modoNoche);
+}
+
 // Crossfade único para la foto del configurador: cancela cualquier cambio pendiente
 // para que un hover nunca sea pisado por un timer antiguo.
 function setConfPhoto(photo, src) {
   if(window._modoBusy) { window._pendSrc = src; return; }   // durante el cambio día/noche se espera a que acabe
-  { const marco = photo.closest('.vconf-left'); if(marco) marco.classList.toggle('foto-noche', esFotoNoche(src)); }
+  { const marco = photo.closest('.vconf-left'); if(marco) marcarMarco(marco, src); }
   if(photo._anims && photo._anims.length) { photo._anims.forEach(a => a.cancel()); photo._anims = []; photo.parentElement.querySelectorAll('.vw-modo-capa, .vw-modo-ov').forEach(c => c.remove()); photo.style.transition = ''; photo.style.opacity = '1'; photo.parentElement.style.backgroundColor = ''; photo.parentElement.style.removeProperty('transition'); }
   if(window._confPhotoTimer) {
     if(photo._target === src) return; // ya va de camino
@@ -3911,7 +3927,7 @@ function transicionModo(photo, src, aNoche) {
   // Fondo actual (el que se ve ahora) y fondo final, leído sin transición
   const viejoBg = getComputedStyle(box).backgroundColor;
   box.style.setProperty('transition', 'none', 'important');
-  box.classList.toggle('foto-noche', esFotoNoche(src));
+  marcarMarco(box, src);
   void box.offsetWidth;
   const nuevoBg = getComputedStyle(box).backgroundColor;
   box.style.backgroundColor = viejoBg;                       // la caja se queda como estaba debajo de la capa
@@ -3987,7 +4003,7 @@ function updateWatchDisplay(hex, textura, strapOverride) {
     src = nightSrc || AURORA_PHOTOS[key] || AURORA_PHOTOS[`${hex}_lisa_${strapType}`] || null;
   }
   // Con foto de noche, el marco pasa a negro para que no se vea el recorte
-  const marco = photo.closest('.vconf-left'); if(marco) marco.classList.toggle('foto-noche', !!src && esFotoNoche(src));
+  const marco = photo.closest('.vconf-left'); if(marco) marcarMarco(marco, src);
   if(src) {
     css.style.display = 'none';
     const verAntes = photo.style.display !== 'none' && photo.getAttribute('src');
